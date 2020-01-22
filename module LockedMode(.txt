@@ -1,0 +1,190 @@
+module LockedMode(
+    input [3:0] SW, //Switch input
+	 input enter, //enter button
+	 input clk, //clock input
+	 input clear, //clear input
+	 input change, //change password button input
+	 input reset,
+	 output reg [3:0] AN, //drives which display 
+	 output reg [6:0] seven //SSD display
+    );
+	
+	reg [15:0] input_passwrd;  //user input password
+	integer pass_counter; //counter for the password element
+	reg [15:0] actual_password;
+	reg go_back_to_idle; //if 1 send system back to idle state
+	wire new_clk;
+	wire new_enter;
+	wire idle; //0 if in idle state, 1 if not
+	reg [15:0] changed_password; //stores the changed password
+	reg change_decide; //if 0, user has not pressed change password
+	integer change_pass_counter; 
+	reg is_locked; //if 0, not in locked mode if 1, in locked mode
+	wire [3:0] AN_u1;
+	wire [3:0] AN_dispNum;
+	wire [6:0] seven_u1;
+	wire [6:0] seven_dispNum;
+	reg unlock_enter;
+	wire GO_BACK;
+	
+	 initial begin
+		pass_counter = 0; //counts which element of password is being entered
+		actual_password = 16'b0000000000000000; // initializes the actual password at 0
+		go_back_to_idle = 0;
+		changed_password = 0;
+		change_decide = 0;
+		change_pass_counter = 0;
+//		unlock_enter = 0;
+	 end
+	 
+	 clk_divider_fast clk1(.clk_in(clk), .divided_clk(new_clk));
+	 debouncer d1(.clk(new_clk), .rst(clear), .noisy_in(enter), .clean_out(new_enter));
+	 
+	 seven_segment dispNum(.clk(new_clk), .clear(clear), .enter(new_enter), .switch_test(SW), .go_back_to_idle(go_back_to_idle), .change_decide(change_decide), .AN(AN_dispNum), .seven_out(seven_dispNum), .idle_or_nah(idle));
+	 unlock u1(/*.unlock_enter(unlock_enter), */.clk(new_clk), .enter(new_enter), .reset(reset),/* .change(change),*/ .clear(clear), .SW(SW), .OUT(seven_u1), .AN(AN_u1), .GO_BACK(GO_BACK));
+
+	always @ (posedge new_clk) begin
+		if (pass_counter == 4) begin //if reached the end of entering the password
+			if (input_passwrd == actual_password) begin //if password is correct
+				go_back_to_idle <= 0; //do not go back to idle
+				seven <= seven_u1; //display the unlocked mode stuff
+				AN <= AN_u1; //display the unlocked mode stuff
+				if (change) begin //if in unlocked mode and the user presses change
+					change_decide <= 1; 
+					pass_counter <= 0;// this will prevent the system from going back to idle
+					seven <= seven_dispNum; //display the change password stuff from dispNum
+					AN <= AN_dispNum;
+				end
+				
+			/*	else if (enter) begin
+					seven <= seven_u1;
+					AN <= AN_u1;
+					unlock_enter <= 1;
+				end*/
+				
+			end
+				
+			else begin //if incorrect
+				go_back_to_idle <= 1; //force the system back into idle state
+				pass_counter <= 0; //rest the counter
+				seven <= seven_dispNum; //display clsd on the dispNum 
+				AN <= AN_dispNum;
+			end
+		end
+					
+		/*else if (unlock_enter) begin
+			seven <= seven_u1;
+			AN <= AN_u1;
+		end*/
+		
+		else if (GO_BACK) begin
+			seven <= seven_dispNum;
+			AN <= AN_dispNum;
+//			unlock_enter <= 0;
+		end
+		
+		else if (change_pass_counter == 4) begin
+			actual_password <= changed_password;
+			change_pass_counter <= 0;
+			change_decide <= 0;
+			go_back_to_idle <= 0;
+			seven <= seven_dispNum;
+			AN <= AN_dispNum;
+		end
+		
+		else begin
+			if (idle == 1 && !change_decide) begin //if not in idle state and user presses enter, save the password
+				case (pass_counter)
+					3: begin
+						if (SW > 9)
+							input_passwrd[3:0] <= 0;
+						else
+							input_passwrd[3:0] <= SW;
+					end
+					
+					2: begin
+						if (SW > 9)
+							input_passwrd[7:4] <= 0;
+						else
+							input_passwrd[7:4] <= SW;
+					end
+					
+					1: begin
+						if (SW > 9)
+							input_passwrd <= 0;
+						else
+							input_passwrd[11:8] <= SW;
+					end
+					
+					0: begin
+						if (SW > 9)
+							input_passwrd <= 0;
+						else
+							input_passwrd[15:12] <= SW;
+					end
+					
+				endcase
+				if (new_enter)
+					pass_counter <= pass_counter + 1;
+			end
+			
+			else if (idle == 1 && change_decide) begin //system is not in idle state, user presses enter, user pressed change
+				case (change_pass_counter)
+					3: begin
+						if (SW > 9)
+							changed_password[3:0] <= 0;
+						else
+							changed_password[3:0] <= SW;
+					end
+					
+					2: begin
+						if (SW > 9)
+							changed_password[7:4] <= 0;
+						else
+							changed_password[7:4] <= SW;
+					end
+					
+					1: begin
+						if (SW > 9)
+							changed_password <= 0;
+						else
+							changed_password[11:8] <= SW;
+					end
+					
+					0: begin
+						if (SW > 9)
+							changed_password <= 0;
+						else
+							changed_password[15:12] <= SW;
+					end
+					
+				endcase
+				if (new_enter)
+					change_pass_counter <= change_pass_counter + 1;
+			end
+		
+			else if (idle == 1 && clear) begin //if not in idle state and user presses clear reset the password and the counter
+				pass_counter <= 0;
+				change_pass_counter <= 0;
+				input_passwrd <= 0;
+				changed_password <= 0;
+				seven <= seven_dispNum;
+				AN <= AN_dispNum;
+			end	
+		
+			else if (idle == 0 && enter) begin //if in idle state and user presses enter go_to_idle is set to 0 
+				go_back_to_idle <=0;
+				pass_counter <= 0;
+				change_pass_counter <= 0;
+				seven <= seven_dispNum;
+				AN <= AN_dispNum;
+			end
+		  else if (idle == 0 && !enter) begin
+			pass_counter <= 0;
+			change_pass_counter <=0;
+			seven <= seven_dispNum;
+			AN <= AN_dispNum;
+		  end
+		end
+	end
+endmodule

@@ -1,0 +1,24 @@
+
+# PlanAhead Generated physical constraints 
+
+NET "AN[0]" LOC = N16;
+NET "AN[1]" LOC = N15;
+NET "AN[2]" LOC = P18;
+NET "AN[3]" LOC = P17;
+NET "seven[6]" LOC = T17;
+NET "seven[5]" LOC = T18;
+NET "seven[4]" LOC = U17;
+NET "seven[3]" LOC = U18;
+NET "seven[2]" LOC = M14;
+NET "seven[1]" LOC = N14;
+NET "seven[0]" LOC = L14;
+NET "SW[0]" LOC = T5;
+NET "SW[1]" LOC = V8;
+NET "SW[2]" LOC = U8;
+NET "SW[3]" LOC = N8;
+NET "clear" LOC = C4;
+NET "clk" LOC = V10;
+NET "enter" LOC = B8;
+NET "change" LOC = D9;
+NET "reset" LOC = C9;
+// ENTER = B8, CHANGE=D9, CLEAR=C4, RESET=C9

@@ -1,0 +1,264 @@
+module unlock (clk, enter, reset, change, inpass, password, number, [3:0]SW, LED_OUT, ssd);
+  //command inputs
+  input clk, enter, reset, change; clear;
+  
+  input [3:0] SW;//Switches_
+  input reg [15:0] number // defines each of the hexadecimal password char<--- from sw
+  
+  
+  // display: LED + SSD 
+  output reg [7:0] LED_OUT;//for blocked mode 8888 // LED requires 8 values
+
+  output reg [27:0] ssd;
+  //SSD register requires 28 values
+  //each character requires a max of 7 bits to be displayed
+  //given 4 "digit" code, requires at least 28 values to be described accurately
+  
+ 
+  //registers
+  reg [15:0] password; //0-15 to represent full range of possible values 0-9, A-F // real password
+  reg [15:0] inpass// user entered 4-digit code, temp pass for password reset and pasword guessing
+  
+  //State Variables _ DEFINED BY CASE
+  reg [7:0] state;
+  reg [7:0] next_state;
+ 
+  //State Parameters// need one for each state
+  parameter IDLE= 
+  parameter UNLOCK=
+  parameter LOCK=
+  parameter E_blank
+  parameter guesspass
+  parameter G1
+  parameter G2
+  parameter G3
+  parameter G4 // 4 dashes 
+  parameter compare
+  parameter C_blank
+  parameter createpass
+  parameter NP1
+  parameter NP2
+  parameter NP3
+  parameter NP4
+  parameter newpass // shows entire password selection
+  
+  
+  
+  //OUTPUT PARAMETERS // SSD display
+  parameter O=7'b0000001;//O
+  parameter P=7'b0011000;//P
+  parameter E=7'b0110000;//E
+  parameter n= 7'b1101010;//n
+  parameter C= 7'b0110001;//C
+  parameter L= 7'b1110001;//L
+  parameter S= 7'b0100100;//S
+  parameter d=7'b1000010;//d
+  parameter blank= 7'1111111;//
+  parameter dash=7'1110111;//_
+  //values that the user can choose for code--- also include blanks? 
+  parameter zero= 7b'0000001;
+  parameter one=7b'1001111;
+  parameter two= 7b'0010010;
+  parameter three= 7b'0000011;
+  parameter four=7b'1001100;
+  parameter five=7b'0100100;
+  parameter six=7b'0100000;
+  parameter seven=7b'0001111;
+  parameter eight=7b'0000000;
+  parameter nine=7b'0001100;
+  parameter A= 7b'0000001;
+  parameter b= 7b'1100000;
+  parameter C= 7b'0110001;
+  parameter d=7b'1000010;
+  parameter E=7b'0110000;
+  parameter F=7b'0111000;
+  
+  
+  
+  //sequential part_state transitions // assumes initial state is unlocked mode
+  always @ (posedge clk or posedge reset)
+    if  (reset==1) state <= UNLOCK;
+     else state<=next_state;
+  end
+ //next_state definitions_ COMBINATIONAL
+  always @ (*)
+    case (state)
+      UNLOCK: // unlocked mode
+        begin 
+          if (enter==1) next_state=E_blank; //out= b b b b                          //guess password pathway
+          else if (reset==1) next_state= UNLOCK; //out= O P E n   password= 0000                // unlocked, password reset to 0000
+          else if (change==1) next_state= C_blank; //out= b b b b                 // change password pathway
+          else next_state= UNLOCK; //out= O P E n                                // most recent password=password
+        end
+	
+		
+      E_blank: // beginning of password guess, blank screen at start
+        begin
+		  // stores first digit (left most ssd block) 
+          number[15:12]<=SW; , // out= # b b b  
+          else if(enter==1) next_state= G1; //out= _ b b b 
+          else if (reset==1) next_state= UNLOCK; //out=OPEn
+			           else  next_state=E_blank; //out= b b b b
+      
+      G1:// prompt for value 2
+                begin
+                  number[11:8]<=SW; // out= _ # b b
+                  if (enter==1) next_state= G2; //out= _ _ b b
+          	      else if (clear) next_state= E_blank;//out=b b b b
+                  else if (reset) next_state= UNLOCK;//out=OPEn
+						else            next_state=G1; //out=_ b b b 
+        end
+      G2:// prompt for value 3
+        begin 
+          number[7:4]<=SW; //out= _ _ # b
+          if (enter==1) next_state=G3; // out=_ _ _b
+          else if (clear) next_state=E_blank; // out= b b b b
+          else if (reset) next_state=UNLOCK; // out= OPEn                    //password= 0000
+          else            next_state=G2; //out= _ _ b b 
+            end
+      G3:// prompt for value 4
+         begin
+           number[3:0]<=SW; // out= _ _ _ #
+           if (enter==1) next_state=G4; //out= _ _ _ _
+           else if(clear) next_state=E_blank;// out= b b b b
+            else if (reset) next_state=UNLOCK; // out= OPEn
+           else             next_state=G3: // out=_ _ _ b
+         end
+			
+	 G4://display dashes
+	 begin
+	 if (enter==1) next_state=compare; // out= ssd
+	 if (clear==1) next_state= E_blank;// out= b b b b
+	 if (reset==1) next_state= UNLOCK; // out= O P E n
+	 else          next_state= G4;     // out= _ _ _ _
+	 end
+	                  
+      compare:// see if number==password
+              begin 
+                if (number==password) next_state<=LOCK; //out= C L S d
+					 else if (number==password) next_state<=UNLOCK; // out= O P E n
+					 else                       next_state<= compare;// out= _ _ _ _ 
+                  end
+                  
+    C_Blank:
+        begin
+		  number[15:12]<=SW; , // out= # b b b  
+         if (enter==1) next_state= NP1; // out= # b b b
+          else if (reset==1) next_state= UNLOCK; // out= O P E n
+          else  next_state=C_blank; // out= b b b b
+        end
+                
+ NP1:
+         begin 
+			number [11:8] <= SW; // out= # # b b
+           if (enter==1) next_state=NP2; //out= # # b b
+           else if (clear) next_state=C_blank; // out= b b b b
+          else if (reset) next_state=UNLOCK; //out = O P E n
+			 else next_state= NP1 // out= # b b b 
+            end
+				
+ NP2:
+         begin 
+			number [7:4] <= SW; // out= # # # b
+           if (enter==1) next_state=NP1; //out= # # b b
+           else if (clear) next_state=C_blank; // out= b b b b
+          else if (reset) next_state=UNLOCK; //out = O P E n
+			 else            next_ state= NP2; // out= # #  b b
+            end
+NP3: 
+
+         begin 
+			number [3:0] <= SW; // out= # # # #
+           if (enter==1) next_state=NP4; //out= # # # #
+           else if (clear) next_state=C_blank; // out= b b b b
+          else if (reset) next_state=UNLOCK; //out = O P E n
+			 else            next_ state= NP3; // out= # # # b 
+            end
+NP4: 
+begin
+	 if (enter==1) next_state=UNLOCK;  reg[15:0] password= reg [15:0] number; // out= OPEN, 
+	 if (clear==1) next_state= E_blank;// out= b b b b
+	 if (reset==1) next_state= UNLOCK; // out= O P E n
+	 else          next_state= G4;     // out= _ _ _ _
+	 end
+	                  
+
+      
+      //LOCK: // locked state
+        //begin
+        //state=state;
+        //end
+    //endcase
+  //SEQUENTIAL PART FOR CONTROL REGISTERS_ASSIGNING CONTROL REGISTERS/STORED VALUES
+ 
+                //sw_store part
+  
+  
+  //SEQUENTIAL PART FOR SSDS//LEDS
+  always @ (posedge clk)
+    begin
+      
+      if (state==UNLOCK)
+      begin
+        ssd<={O,P, E, n}; //OPEn
+      end
+      
+		// Display for password guess states
+      else if (state==E_blank) 
+		begin
+		ssd<={blank, blank, blank, blank};
+		end
+
+      else if (state==G1) 
+       begin
+        ssd <= {dash, blank, blank, blank}; 
+      end
+      
+      else if (state==G2)
+      begin 
+        ssd<= {dash, dash, blank, blank};
+      end
+      
+      else if (state==G3)
+      begin
+        ssd<= {dash, dash, dash, blank};
+      end
+      
+      else if (state==G4)
+      begin
+        ssd<= {dash, dash, dash, dash};
+      end
+      
+      else if (state==compare)
+      begin
+        ssd<={dash,dash, dash, dash};
+      end
+      
+      else if (state==C_blank)// Display for password redefinition states
+      begin
+       ssd<= {blank, blank, blank, blank}; 
+      end
+        
+      else if (state==NP1)
+      begin
+        ssd<= {0,sw[3:0], blank, blank, blank};
+      end
+      
+      else if (state==NP2)
+      begin
+        ssd<= {n1, n2, blank, blank};
+      end
+      
+      else if (state==NP3)
+      begin 
+        ssd<= {n1, n2, n3,blank};
+      end
+      
+      else if (state==NP4)
+      begin
+        ssd<={n1, n2, n3, n4};
+		  
+		else if (state==LOCK)
+		begin
+		ssd<={C, L, S, d};
+      end

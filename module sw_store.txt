@@ -1,0 +1,44 @@
+module sw_store (number, [3:0] SW, AN, clk,pcount);
+  
+  //inputs and registers
+  input reg [15:0] number; 
+  input clk; //1hz clock
+  
+  input [3:0] SW;
+  output reg [3:0] AN;//determines which square lights up
+ 
+  reg [1:0] pcount;//password count
+  
+  //display OPEn  
+  initial begin
+    AN=0;
+    SW=0;
+    pcount=0;
+  end
+  
+  always @ (posedge clk) begin
+    pcount=pcount+1'b1;
+    case(pcount)
+      
+      0:begin//last bit
+        AN=4b'0111;//0-3
+        number[3:0]=SW;
+        end
+      
+      1: begin// third bit in display string
+        AN=4b'0111; 
+        number[7:4]=SW;
+       end
+      
+      2: begin//second bit in display string
+        AN=4b'1110; 
+        number[11:8]=SW;
+            end
+      
+      3: begin//first bit in display string
+        AN=4b'1110;  
+        number[15:12]=SW;
+             end
+      end
+    endcase
+    endmodule
