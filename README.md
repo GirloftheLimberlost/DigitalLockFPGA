@@ -1,4 +1,4 @@
-# DigitalLockFPGA
+# DigitalLockFPGA (GitHub has the .txt(s) of verilog module drafts)
 Lost project folder contained system files for a FPGA Digital Lock System
 - 7 segment LED Display (converted binary password inputs into visualizations on the LED screen)
 - allowed for input of HEXADECIMAL characters: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F} 
