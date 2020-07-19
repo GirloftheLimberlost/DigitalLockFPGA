@@ -4,7 +4,7 @@ module seven_segment(
 	 input clear,
     input [3:0] switch_test, //switch input
 	 input go_back_to_idle, //if 1, send the system back to idle state
-	 input change_decide, //if 0 then the user did not press change, if 1 then the bitch did
+	 input change_decide, //if 0 then the user did not press change, if 1 then the bitch did (<-- Who wrote this? --- mauriezh reviewing @07/18/2020)
     output reg [3:0] AN, //SSD
     output [6:0] seven_out, //display
 	 output reg idle_or_nah //is the system in idle state
